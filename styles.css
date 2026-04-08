@@ -363,13 +363,13 @@ h5 {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: relative; /* zoom-preview positions off this */
 }
 
-/* Main image container – relative for zoom overlay */
 .gallery__main {
   position: relative;
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow: hidden;       /* safe now — preview is outside this element */
   background: var(--color-gray-100);
   cursor: crosshair;
   aspect-ratio: 4/3;
@@ -379,68 +379,82 @@ h5 {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
   display: block;
   pointer-events: none;
+  transition: opacity 0.2s ease;
 }
 
-/* ── Zoom Lens (shown inside main image on hover) ── */
-.zoom-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.gallery__main:hover .zoom-overlay {
-  opacity: 1;
-}
-
+/* ── Zoom Lens ──
+   Inside gallery__main, clipped by overflow:hidden.
+   box-shadow creates the dimming vignette outside the lens area. */
 .zoom-lens {
   position: absolute;
-  width: 140px;
-  height: 140px;
-  border: 2px solid var(--color-amber);
-  border-radius: 4px;
-  background: rgba(245, 158, 11, 0.08);
+  top: 0; left: 0;        /* JS moves via style.left / style.top */
+  /* width & height set by JS */
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
   pointer-events: none;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.25);
-  transition: none; /* JS moves it — no lag */
+  opacity: 0;             /* JS sets 1 on mouseenter */
+  transition: none;       /* zero lag — must track cursor instantly */
+  will-change: left, top;
+  z-index: 10;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.28);
 }
 
-/* ── Zoom Preview Panel ── */
-.zoom-preview {
+/* Horizontal crosshair bar */
+.zoom-lens::before {
+  content: '';
   position: absolute;
+  left: 0; top: 50%;
+  width: 100%; height: 1px;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.80);
+}
+
+/* Vertical crosshair bar */
+.zoom-lens::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%;
+  width: 1px; height: 100%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.80);
+}
+
+/* ── Zoom Preview Panel ──
+   Sibling of gallery__main inside .product-gallery.
+   Floats to the RIGHT via left: calc(100% + 12px).
+   JS sets top + height to align with gallery__main exactly,
+   and drives background-image / size / position. */
+.zoom-preview {
+  display: none;
+  position: absolute;
+  left: calc(100% + 12px);
   top: 0;
-  left: calc(100% + 16px);
-  width: 320px;
-  height: 320px;
-  border-radius: var(--radius);
-  border: 2px solid var(--color-border);
+  width: 260px;
+  max-height: 320px;
+  border-radius: var(--radius-lg);
+  background-color: #111;
+  background-repeat: no-repeat;
   overflow: hidden;
-  background: var(--color-white);
+  border: 2px solid var(--color-border);
   box-shadow: var(--shadow-lg);
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.2s;
-  z-index: 50;
+  transition: opacity 0.18s ease;
+  z-index: 100;
 }
 
-/* shown via JS while hovering */
 .zoom-preview.active {
+  display: block;
   opacity: 1;
 }
-
-.zoom-preview img {
-  position: absolute;
-  width: auto;
-  max-width: none;
-  height: auto;
-  pointer-events: none;
-}
-
+ 
+/* The fallback <img> inside the panel is unused — hide it */
+#zoomPreviewImg { display: none; }
+ 
+ 
 /* Gallery arrows */
 .gallery__arrow {
   position: absolute;
@@ -448,7 +462,7 @@ h5 {
   transform: translateY(-50%);
   width: 40px;
   height: 40px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255,255,255,.9);
   border: none;
   border-radius: 50%;
   font-size: 1rem;
@@ -457,29 +471,20 @@ h5 {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition:
-    background var(--transition),
-    box-shadow var(--transition);
+  transition: background var(--transition), box-shadow var(--transition);
   z-index: 10;
 }
-.gallery__arrow:hover {
-  background: var(--color-white);
-  box-shadow: var(--shadow-md);
-}
-.gallery__arrow--prev {
-  left: 12px;
-}
-.gallery__arrow--next {
-  right: 12px;
-}
-
+.gallery__arrow:hover { background: var(--color-white); box-shadow: var(--shadow-md); }
+.gallery__arrow--prev { left: 12px; }
+.gallery__arrow--next { right: 12px; }
+ 
 /* Thumbnails row */
 .gallery__thumbs {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
-
+ 
 .gallery__thumb {
   width: calc(16.66% - 9px);
   aspect-ratio: 1;
@@ -489,22 +494,11 @@ h5 {
   cursor: pointer;
   background: var(--color-gray-100);
   padding: 0;
-  transition:
-    border-color var(--transition),
-    transform var(--transition);
+  transition: border-color var(--transition), transform var(--transition);
 }
-.gallery__thumb:hover {
-  transform: scale(1.04);
-  border-color: var(--color-gray-300);
-}
-.gallery__thumb.active {
-  border-color: var(--color-navy);
-}
-.gallery__thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+.gallery__thumb:hover { transform: scale(1.04); border-color: var(--color-gray-300); }
+.gallery__thumb.active { border-color: var(--color-navy); }
+.gallery__thumb img { width: 100%; height: 100%; object-fit: cover; }
 
 /* ============================================================
    PRODUCT INFO (right column)

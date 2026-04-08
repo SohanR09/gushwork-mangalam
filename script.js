@@ -3,13 +3,17 @@
  *
  * Covers:
  *  1. Sticky header – appears on scroll past hero, disappears on scroll up
- *  2. Image carousel – prev/next + thumbnail switching
- *  3. Zoom-on-hover – lens + floating preview panel
+ *  2. Image zoom on hover – lens on main image + background-based preview panel
+ *  3. Image carousel – prev/next + thumbnail switching (defined AFTER zoom so
+ *     notifyZoom() is already available)
  *  4. Applications carousel – drag / button scroll
  *  5. Manufacturing process tabs
  *  6. Process pane prev/next navigation
  *  7. Mobile hamburger menu
  *  8. Smooth scroll for in-page anchor links
+ *  9. Brands ticker – pause on hover
+ * 10. Catalogue email form validation
+ * 11. Contact form validation
  */
 
 "use strict";
@@ -27,12 +31,8 @@
   let lastScrollY = window.scrollY;
   let ticking = false;
 
-  /**
-   * threshold = height of the main nav + viewport height (first fold)
-   * We recalculate on resize so it stays accurate.
-   */
+  // threshold = nav height + full viewport height (bottom of first fold)
   let threshold = mainNav.offsetHeight + window.innerHeight;
-
   window.addEventListener("resize", () => {
     threshold = mainNav.offsetHeight + window.innerHeight;
   });
@@ -42,7 +42,7 @@
     const scrollingUp = currentY < lastScrollY;
 
     if (currentY > threshold) {
-      // Past the fold – show header only when scrolling UP
+      // Past the first fold – show only when scrolling UP
       if (scrollingUp) {
         stickyHeader.classList.add("is-visible");
         stickyHeader.removeAttribute("aria-hidden");
@@ -51,7 +51,6 @@
         stickyHeader.setAttribute("aria-hidden", "true");
       }
     } else {
-      // Still in the first fold – always hide sticky header
       stickyHeader.classList.remove("is-visible");
       stickyHeader.setAttribute("aria-hidden", "true");
     }
@@ -73,15 +72,121 @@
 })();
 
 /* ============================================================
-   2. IMAGE CAROUSEL
+   2. IMAGE ZOOM ON HOVER
+   Defined BEFORE carousel so window.notifyZoom exists immediately.
+
+   BEHAVIOUR:
+   • Mouse enters gallery → lens appears, preview panel fades in
+   • Mouse moves         → lens tracks cursor; preview shows zoomed region
+   • Mouse leaves        → both hide
+   • Carousel changes    → window.notifyZoom(src) updates preview src
+
+   KEY FIX: background-position values can be negative or positive —
+   we must NOT blindly prepend "-". We clamp them so the zoomed image
+   never shows blank space at the edges of the preview panel.
+   ============================================================ */
+(function initZoom() {
+  var galleryMain = document.getElementById("galleryMain");
+  var mainImg = document.getElementById("mainImage");
+  var zoomLens = document.getElementById("zoomLens");
+  var zoomPreview = document.getElementById("zoomPreview");
+
+  if (!galleryMain || !mainImg || !zoomLens || !zoomPreview) {
+    console.warn("Zoom: element(s) missing");
+    return;
+  }
+
+  var ZOOM = 1.5;
+  var LENS_W = 80;
+  var LENS_H = 80;
+
+  zoomLens.style.width = LENS_W + "px";
+  zoomLens.style.height = LENS_H + "px";
+
+  var currentSrc = "";
+
+  /* Called by carousel on every slide change */
+  window.notifyZoom = function (src) {
+    currentSrc = src;
+  };
+
+  /* Align preview panel top + height to match gallery__main */
+  function alignPreview() {
+    var galleryH = galleryMain.getBoundingClientRect().height;
+    var previewH = Math.min(galleryH, 320);
+    var offsetTop = galleryMain.offsetTop + galleryH / 2 - previewH / 2;
+    zoomPreview.style.top = offsetTop + "px";
+    zoomPreview.style.height = previewH + "px";
+  }
+
+  galleryMain.addEventListener("mouseenter", function () {
+    currentSrc = mainImg.src;
+    alignPreview();
+    zoomLens.style.opacity = "1";
+    zoomPreview.style.backgroundImage = 'url("' + currentSrc + '")';
+    zoomPreview.classList.add("active");
+    zoomPreview.removeAttribute("aria-hidden");
+  });
+
+  galleryMain.addEventListener("mouseleave", function () {
+    zoomLens.style.opacity = "0";
+    zoomPreview.classList.remove("active");
+    zoomPreview.setAttribute("aria-hidden", "true");
+  });
+
+  galleryMain.addEventListener("mousemove", function (e) {
+    var rect = galleryMain.getBoundingClientRect();
+    var curX = e.clientX - rect.left;
+    var curY = e.clientY - rect.top;
+
+    /* Lens position — clamped inside the image */
+    var lensLeft = Math.max(
+      0,
+      Math.min(curX - LENS_W / 2, rect.width - LENS_W),
+    );
+    var lensTop = Math.max(
+      0,
+      Math.min(curY - LENS_H / 2, rect.height - LENS_H),
+    );
+    zoomLens.style.left = lensLeft + "px";
+    zoomLens.style.top = lensTop + "px";
+
+    /* Preview background */
+    var prevW = zoomPreview.offsetWidth || 380;
+    var prevH = zoomPreview.offsetHeight || rect.height;
+    var focusX = lensLeft + LENS_W / 2;
+    var focusY = lensTop + LENS_H / 2;
+    var bgW = rect.width * ZOOM;
+    var bgH = rect.height * ZOOM;
+
+    /* Offset so the focus point lands at the centre of the preview */
+    var bgX = prevW / 2 - focusX * ZOOM;
+    var bgY = prevH / 2 - focusY * ZOOM;
+
+    /* Clamp — never show blank space at panel edges */
+    bgX = Math.min(0, Math.max(bgX, prevW - bgW));
+    bgY = Math.min(0, Math.max(bgY, prevH - bgH));
+
+    zoomPreview.style.backgroundImage = 'url("' + currentSrc + '")';
+    zoomPreview.style.backgroundSize = bgW + "px " + bgH + "px";
+    zoomPreview.style.backgroundPosition = bgX + "px " + bgY + "px";
+  });
+
+  window.addEventListener("resize", function () {
+    if (zoomPreview.classList.contains("active")) alignPreview();
+  });
+})();
+
+/* ============================================================
+   3. IMAGE CAROUSEL
    Handles:
-   - Prev / next arrow navigation
+   - Prev / next arrow navigation with fade transition
    - Thumbnail click → switch image
    - Active thumbnail highlight
+   - Touch swipe support
+   - Notifies zoom module on every slide change
    ============================================================ */
 (function initCarousel() {
-  /** All carousel image sources – full-size and thumb are same URL
-      with different Unsplash size params.  */
   const images = [
     "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=720&q=80",
     "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=720&q=80",
@@ -95,170 +200,88 @@
   const thumbBtns = document.querySelectorAll(".gallery__thumb");
   const prevBtn = document.getElementById("prevBtn");
   const nextBtn = document.getElementById("nextBtn");
+  const galleryMain = document.getElementById("galleryMain");
 
   if (!mainImg || !thumbBtns.length) return;
 
   let currentIndex = 0;
+  let transitioning = false; // prevent rapid double-clicks
 
   /**
-   * switchToImage – update the main image + active thumb state
-   * @param {number} index - target image index
+   * switchToImage – fade-swap the main image and update thumbnails.
+   * Also tells the zoom module which URL is now active.
    */
   function switchToImage(index) {
-    // Clamp index with wrap-around
-    currentIndex = (index + images.length) % images.length;
+    if (transitioning) return;
+    transitioning = true;
 
-    // Fade out → swap src → fade in
+    currentIndex = (index + images.length) % images.length;
+    const newSrc = images[currentIndex];
+
+    // Fade out
+    mainImg.style.transition = "opacity 0.2s ease";
     mainImg.style.opacity = "0";
-    mainImg.style.transition = "opacity 0.25s ease";
 
     setTimeout(() => {
-      mainImg.src = images[currentIndex];
+      mainImg.src = newSrc;
       mainImg.style.opacity = "1";
-    }, 200);
+      transitioning = false;
 
-    // Update active thumbnail
+      // Tell zoom module the new image URL
+      if (typeof window.notifyZoom === "function") {
+        window.notifyZoom(newSrc);
+      }
+    }, 220);
+
+    // Update thumbnail highlight
     thumbBtns.forEach((btn, i) => {
       btn.classList.toggle("active", i === currentIndex);
       btn.setAttribute("aria-pressed", i === currentIndex ? "true" : "false");
     });
-
-    // Keep zoom preview in sync
-    updateZoomPreviewSrc(images[currentIndex]);
   }
 
-  // Arrow buttons
-  prevBtn.addEventListener("click", () => switchToImage(currentIndex - 1));
-  nextBtn.addEventListener("click", () => switchToImage(currentIndex + 1));
+  // Arrows
+  if (prevBtn)
+    prevBtn.addEventListener("click", () => switchToImage(currentIndex - 1));
+  if (nextBtn)
+    nextBtn.addEventListener("click", () => switchToImage(currentIndex + 1));
 
-  // Keyboard arrow support on gallery
+  // Thumbnails
+  thumbBtns.forEach((btn, i) =>
+    btn.addEventListener("click", () => switchToImage(i)),
+  );
+
+  // Keyboard – only when gallery is focused/active area
   document.addEventListener("keydown", (e) => {
-    if (document.activeElement.closest("#productGallery")) {
+    if (
+      document.activeElement &&
+      document.activeElement.closest("#productGallery")
+    ) {
       if (e.key === "ArrowLeft") switchToImage(currentIndex - 1);
       if (e.key === "ArrowRight") switchToImage(currentIndex + 1);
     }
   });
 
-  // Thumbnail clicks
-  thumbBtns.forEach((btn, i) => {
-    btn.addEventListener("click", () => switchToImage(i));
-  });
-
-  // Touch swipe support on main image
-  let touchStartX = 0;
-  const galleryMain = document.getElementById("galleryMain");
-
-  galleryMain.addEventListener(
-    "touchstart",
-    (e) => {
-      touchStartX = e.touches[0].clientX;
-    },
-    { passive: true },
-  );
-
-  galleryMain.addEventListener(
-    "touchend",
-    (e) => {
-      const diff = touchStartX - e.changedTouches[0].clientX;
-      if (Math.abs(diff) > 40) {
-        switchToImage(currentIndex + (diff > 0 ? 1 : -1));
-      }
-    },
-    { passive: true },
-  );
-
-  // Expose update function for zoom module
-  window._carouselGetCurrentSrc = () => images[currentIndex];
-})();
-
-/* ============================================================
-   3. IMAGE ZOOM ON HOVER
-   - A "lens" rectangle follows the cursor over the main image
-   - A floating preview panel shows the zoomed area
-   ============================================================ */
-(function initZoom() {
-  const galleryMain = document.getElementById("galleryMain");
-  const mainImg = document.getElementById("mainImage");
-  const zoomLens = document.getElementById("zoomLens");
-  const zoomPreview = document.getElementById("zoomPreview");
-  const zoomPreviewImg = document.getElementById("zoomPreviewImg");
-
-  if (!galleryMain || !zoomLens || !zoomPreview || !zoomPreviewImg) return;
-
-  /** Zoom magnification factor */
-  const ZOOM = 3;
-  const LENS_W = 140;
-  const LENS_H = 140;
-
-  // Set the preview image once and update on slide change
-  function setPreviewSrc(src) {
-    zoomPreviewImg.src = src;
-  }
-
-  // Called by carousel when image changes
-  window.updateZoomPreviewSrc = setPreviewSrc;
-
-  // Initialise with first image
-  setPreviewSrc(mainImg.src);
-  mainImg.addEventListener("load", () => setPreviewSrc(mainImg.src));
-
-  /**
-   * onMouseMove – calculate lens position and update the zoomed image offset
-   */
-  function onMouseMove(e) {
-    const rect = galleryMain.getBoundingClientRect();
-    const relX = e.clientX - rect.left;
-    const relY = e.clientY - rect.top;
-
-    // Clamp lens so it stays fully within the image
-    const lensX = Math.max(LENS_W / 2, Math.min(relX, rect.width - LENS_W / 2));
-    const lensY = Math.max(
-      LENS_H / 2,
-      Math.min(relY, rect.height - LENS_H / 2),
+  // Touch swipe
+  if (galleryMain) {
+    let touchStartX = 0;
+    galleryMain.addEventListener(
+      "touchstart",
+      (e) => {
+        touchStartX = e.touches[0].clientX;
+      },
+      { passive: true },
     );
-
-    // Position lens (centred on cursor)
-    zoomLens.style.left = lensX + "px";
-    zoomLens.style.top = lensY + "px";
-
-    // Calculate the background offset for the preview panel
-    // Preview panel is 320 × 320; magnified image is (rect.width*ZOOM) × (rect.height*ZOOM)
-    const previewW = 320;
-    const previewH = 320;
-
-    // Fraction of image the cursor is at
-    const fracX = (lensX - LENS_W / 2) / (rect.width - LENS_W);
-    const fracY = (lensY - LENS_H / 2) / (rect.height - LENS_H);
-
-    const imgNaturalW = mainImg.naturalWidth || rect.width;
-    const imgNaturalH = mainImg.naturalHeight || rect.height;
-
-    // Scale to fill the preview at ZOOM level
-    const scaledW = imgNaturalW * ZOOM * (previewW / (LENS_W * ZOOM));
-    const scaledH = imgNaturalH * ZOOM * (previewH / (LENS_H * ZOOM));
-
-    // Offset so the correct region fills the preview box
-    const offsetX = -(fracX * (scaledW - previewW));
-    const offsetY = -(fracY * (scaledH - previewH));
-
-    // Apply to preview image via transform
-    zoomPreviewImg.style.width = scaledW + "px";
-    zoomPreviewImg.style.height = scaledH + "px";
-    zoomPreviewImg.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+    galleryMain.addEventListener(
+      "touchend",
+      (e) => {
+        const diff = touchStartX - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 40)
+          switchToImage(currentIndex + (diff > 0 ? 1 : -1));
+      },
+      { passive: true },
+    );
   }
-
-  // Show / hide
-  galleryMain.addEventListener("mouseenter", () => {
-    zoomPreview.classList.add("active");
-    zoomPreview.removeAttribute("aria-hidden");
-  });
-
-  galleryMain.addEventListener("mouseleave", () => {
-    zoomPreview.classList.remove("active");
-    zoomPreview.setAttribute("aria-hidden", "true");
-  });
-
-  galleryMain.addEventListener("mousemove", onMouseMove);
 })();
 
 /* ============================================================

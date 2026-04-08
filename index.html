@@ -79,14 +79,8 @@
                 id="mainImage"
                 class="gallery__main-img"
               />
-              <!-- Zoom overlay -->
-              <div class="zoom-overlay" id="zoomOverlay" aria-hidden="true">
-                <div class="zoom-lens" id="zoomLens"></div>
-              </div>
-              <div class="zoom-preview" id="zoomPreview" aria-hidden="true">
-                <img src="" alt="Zoomed view" id="zoomPreviewImg" />
-              </div>
-              <!-- Prev / Next arrows -->
+              <!-- Lens stays INSIDE gallery__main so it overlays the image -->
+              <div class="zoom-lens" id="zoomLens" aria-hidden="true"></div>
               <button
                 class="gallery__arrow gallery__arrow--prev"
                 id="prevBtn"
@@ -102,6 +96,9 @@
                 &#8594;
               </button>
             </div>
+
+            <!-- Preview is OUTSIDE gallery__main, sibling inside .product-gallery -->
+            <div class="zoom-preview" id="zoomPreview" aria-hidden="true"></div>
 
             <!-- Thumbnails -->
             <div
