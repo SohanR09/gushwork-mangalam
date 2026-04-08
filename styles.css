@@ -369,7 +369,7 @@ h5 {
 .gallery__main {
   position: relative;
   border-radius: var(--radius-lg);
-  overflow: hidden;       /* safe now — preview is outside this element */
+  overflow: hidden; /* safe now — preview is outside this element */
   background: var(--color-gray-100);
   cursor: crosshair;
   aspect-ratio: 4/3;
@@ -389,14 +389,15 @@ h5 {
    box-shadow creates the dimming vignette outside the lens area. */
 .zoom-lens {
   position: absolute;
-  top: 0; left: 0;        /* JS moves via style.left / style.top */
+  top: 0;
+  left: 0; /* JS moves via style.left / style.top */
   /* width & height set by JS */
   border: 2px solid rgba(255, 255, 255, 0.95);
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.08);
   pointer-events: none;
-  opacity: 0;             /* JS sets 1 on mouseenter */
-  transition: none;       /* zero lag — must track cursor instantly */
+  opacity: 0; /* JS sets 1 on mouseenter */
+  transition: none; /* zero lag — must track cursor instantly */
   will-change: left, top;
   z-index: 10;
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.28);
@@ -404,22 +405,26 @@ h5 {
 
 /* Horizontal crosshair bar */
 .zoom-lens::before {
-  content: '';
+  content: "";
   position: absolute;
-  left: 0; top: 50%;
-  width: 100%; height: 1px;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  height: 1px;
   transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.80);
+  background: rgba(255, 255, 255, 0.8);
 }
 
 /* Vertical crosshair bar */
 .zoom-lens::after {
-  content: '';
+  content: "";
   position: absolute;
-  top: 0; left: 50%;
-  width: 1px; height: 100%;
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 100%;
   transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.80);
+  background: rgba(255, 255, 255, 0.8);
 }
 
 /* ── Zoom Preview Panel ──
@@ -450,11 +455,12 @@ h5 {
   display: block;
   opacity: 1;
 }
- 
+
 /* The fallback <img> inside the panel is unused — hide it */
-#zoomPreviewImg { display: none; }
- 
- 
+#zoomPreviewImg {
+  display: none;
+}
+
 /* Gallery arrows */
 .gallery__arrow {
   position: absolute;
@@ -462,7 +468,7 @@ h5 {
   transform: translateY(-50%);
   width: 40px;
   height: 40px;
-  background: rgba(255,255,255,.9);
+  background: rgba(255, 255, 255, 0.9);
   border: none;
   border-radius: 50%;
   font-size: 1rem;
@@ -471,20 +477,29 @@ h5 {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--transition), box-shadow var(--transition);
+  transition:
+    background var(--transition),
+    box-shadow var(--transition);
   z-index: 10;
 }
-.gallery__arrow:hover { background: var(--color-white); box-shadow: var(--shadow-md); }
-.gallery__arrow--prev { left: 12px; }
-.gallery__arrow--next { right: 12px; }
- 
+.gallery__arrow:hover {
+  background: var(--color-white);
+  box-shadow: var(--shadow-md);
+}
+.gallery__arrow--prev {
+  left: 12px;
+}
+.gallery__arrow--next {
+  right: 12px;
+}
+
 /* Thumbnails row */
 .gallery__thumbs {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
- 
+
 .gallery__thumb {
   width: calc(16.66% - 9px);
   aspect-ratio: 1;
@@ -494,11 +509,22 @@ h5 {
   cursor: pointer;
   background: var(--color-gray-100);
   padding: 0;
-  transition: border-color var(--transition), transform var(--transition);
+  transition:
+    border-color var(--transition),
+    transform var(--transition);
 }
-.gallery__thumb:hover { transform: scale(1.04); border-color: var(--color-gray-300); }
-.gallery__thumb.active { border-color: var(--color-navy); }
-.gallery__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.gallery__thumb:hover {
+  transform: scale(1.04);
+  border-color: var(--color-gray-300);
+}
+.gallery__thumb.active {
+  border-color: var(--color-navy);
+}
+.gallery__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
 /* ============================================================
    PRODUCT INFO (right column)
@@ -695,14 +721,23 @@ h5 {
 
 .specs-table-aligned {
   width: auto;
+  display: flex;
+  flex-direction: column;
   justify-items: center;
   align-items: center;
+}
+
+.specs-table-wrapper {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .specs-table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 32px;
   font-size: 0.9375rem;
   background: rgba(31, 41, 55, 1);
 }
@@ -713,7 +748,7 @@ h5 {
 
 .specs-table thead th {
   text-align: left;
-  padding: 12px 16px;
+  padding: 12px 26px;
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -725,12 +760,15 @@ h5 {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   transition: background var(--transition);
 }
+.specs-table tbody tr:last-child {
+  border-bottom: none;
+}
 .specs-table tbody tr:hover {
   background: rgba(255, 255, 255, 0.05);
 }
 
 .specs-table tbody td {
-  padding: 14px 16px;
+  padding: 14px 26px;
   color: rgba(255, 255, 255, 0.9);
 }
 .specs-table tbody td:first-child {
@@ -974,7 +1012,7 @@ h5 {
 }
 
 .app-carousel-track-wrapper {
-  overflow: hidden;
+  overflow: hidden; /* clips the track — no scrollbar visible */
 }
 
 .app-carousel-track {
@@ -982,6 +1020,14 @@ h5 {
   gap: 24px;
   transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;
+  /* Hide scrollbar in all browsers (JS may set overflow-x:scroll) */
+  overflow-x: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE / Edge */
+}
+
+.app-carousel-track::-webkit-scrollbar {
+  display: none; /* Chrome / Safari */
 }
 
 .app-card {
@@ -1521,9 +1567,9 @@ h5 {
 }
 
 .footer-brand-tag {
-  font-size: 1.25rem!important;
-  font-weight: 900!important;
-  color: var(--color-gray-900)!important;
+  font-size: 1.25rem !important;
+  font-weight: 900 !important;
+  color: var(--color-gray-900) !important;
 }
 
 .footer-brand-text {
